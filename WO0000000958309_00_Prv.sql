@@ -32,7 +32,8 @@ declare
     --Constantes
     csbEPM_WO           constant varchar2( 10 ) := 'WO958309'; 
     csbWO               constant varchar2( 32 ) := 'WO0000000958309';
-    csbOutPut           constant varchar2( 1 )  := 'S';
+    csbdOutPut          constant varchar2( 1 )  := 'S';
+    csbfInPut           constant varchar2( 1 )  := 'N';
     csbEscritura        constant varchar2( 1 )  := 'w';
     csbLectura          constant varchar2( 1 )  := 'r';
     csbPIPE             constant varchar2( 1 )  := '|';
@@ -216,7 +217,7 @@ declare
     IS
         nuIniBusqueda     NUMBER          := 1;
         nuFinBusqueda     NUMBER          := 1;
-        sbArgumento       VARCHAR2( 200 );
+        sbArgumento       VARCHAR2( 2000 );
         nuIndArgumentos   NUMBER          := 1;
         nuLongitudArg     NUMBER;
     BEGIN
@@ -299,6 +300,7 @@ declare
             RETURN NULL;
     END fnc_rs_CalculaTiempo;
     
+    --pkg_epm_filemanager.fgetnextline
     FUNCTION fGetNextLine
     (
         iflFileHandle IN UTL_FILE.FILE_TYPE,
@@ -328,7 +330,7 @@ declare
             
         END;
 
-        IF csbOutPut = 'S' THEN
+        IF csbdOutPut = 'S' THEN
             dbms_output.enable;
             dbms_output.enable (buffer_size => null);
         END IF;
@@ -366,10 +368,10 @@ declare
         --tbArchivos(4).tipoarch := csbEscritura;
 
         tbArchivos(-1).flgprint := 'N';
-        tbArchivos(0).flgprint  := 'N';
-        tbArchivos(1).flgprint  := 'N';
+        tbArchivos(0).flgprint  := csbfInPut;
+        tbArchivos(1).flgprint  := 'S';
         tbArchivos(2).flgprint  := 'N';
-        tbArchivos(3).flgprint  := 'S';
+        tbArchivos(3).flgprint  := 'N';
         
         sbCabecera := 'TipoError|Producto|Componente|Mensaje|Error'; 
         tbArchivos(nuIdErr).cabecera := sbCabecera;
@@ -405,7 +407,7 @@ declare
     
     Procedure pEscritura (ircArchivos  in out tyrcArchivos, sbMensaje  in varchar2) IS
     Begin 
-        If csbOutPut = 'S' THEN 
+        If csbdOutPut = 'S' THEN 
             if ircArchivos.flgprint = 'S' then
                 pCustomOutput(sbMensaje); 
             end if;
@@ -421,39 +423,42 @@ declare
      
     PROCEDURE pAbrirArchivo IS
     BEGIN
-        for i in -1 .. cnuOuts loop
-            begin            
-                if i != 0 then
-                    tbArchivos(i).flFile := utl_file.fopen( sbRuta, tbArchivos(i).nombrearch, tbArchivos(i).tipoarch);
-                    if i != -1 then
-                        pEscritura(tbArchivos(i),tbArchivos(i).cabecera);
-                        pEscritura(tbArchivos(-1),tbArchivos(i).nombrearch);
-                    end if;
-                end if;   
-            exception
-                when utl_file.invalid_operation then
-                    if utl_file.is_open( tbArchivos(nuIdErr).flFile ) then
-                        sbComentario := 'Error -1|||Error en operacion "'||tbArchivos(i).tipoarch||
-                        '" para el archivo "'||tbArchivos(i).nombrearch||'" en la ruta "'||sbRuta||'"|'||sqlerrm;
-                        pEscritura(tbArchivos(nuIdErr),sbComentario);
-                        raise;
-                    else
-                        dbms_output.put_line('Error -1|||Error no controlado el apertura de archivos|'||sqlerrm);    
-                        raise;
-                    end if;
-            end;                   
-        end loop;
+        if csbdOutPut != 'S' then 
+            for i in -1 .. cnuOuts loop
+                begin  
+                    if i = 0 and tbArchivos(0).flgprint = 'S' then
+                        -- Archivo de entrada
+                        --pkg_epm_filemanager.pClearFileCtrlM(sbRuta, tbArchivos(0).nombrearch);
+                        --tbArchivos(0).flFile := pkg_epm_gestionarchivos.ffabrirarchivo(sbRuta, tbArchivos(0).nombrearch, tbArchivos(0).tipoarch); 
+                        tbArchivos(0).flFile := utl_file.fopen(sbRuta, tbArchivos(0).nombrearch, tbArchivos(0).tipoarch);
+                    elsif i != 0 then
+                        --tbArchivos(i).flFile := pkg_epm_gestionarchivos.ffabrirarchivo(sbRuta, tbArchivos(i).nombrearch, tbArchivos(i).tipoarch);
+                        tbArchivos(i).flFile := utl_file.fopen(sbRuta, tbArchivos(i).nombrearch, tbArchivos(i).tipoarch);
+                        if i != -1 then
+                            pEscritura(tbArchivos(i),tbArchivos(i).cabecera);
+                            pEscritura(tbArchivos(-1),tbArchivos(i).nombrearch);
+                        end if;
+                    end if;  
+                exception
+                    when utl_file.invalid_operation then
+                        if utl_file.is_open( tbArchivos(nuIdErr).flFile ) then
+                            sbComentario := 'Error -1|||Error en operacion "'||tbArchivos(i).tipoarch||
+                            '" para el archivo "'||tbArchivos(i).nombrearch||'" en la ruta "'||sbRuta||'"|'||sqlerrm;
+                            pEscritura(tbArchivos(nuIdErr),sbComentario);
+                            raise;
+                        else
+                            dbms_output.put_line('Error -1|||Error no controlado el apertura de archivos|'||sqlerrm);    
+                            raise;
+                        end if;
+                end;                   
+            end loop;
+        end if;
     END pAbrirArchivo;
     
     PROCEDURE pCerrarArchivo IS
     BEGIN
-        for i in 1 .. cnuOuts loop
-            if ( utl_file.is_open( tbArchivos(i).flFile ) ) then
-                utl_file.fclose( tbArchivos(i).flFile );
-            end if;
-        end loop;
         pEscritura(tbArchivos(nuIdErr),'================================================');
-        pEscritura(tbArchivos(nuIdErr),'Finaliza la actualización.' );
+        pEscritura(tbArchivos(nuIdErr),'Finaliza la actualización '||csbWO||'.' );
         pEscritura(tbArchivos(nuIdErr),'Total de Componentes detectados : '||nuLine);
         pEscritura(tbArchivos(nuIdErr),'Total de Componentes almacenados : '||nuTotal);
         pEscritura(tbArchivos(nuIdErr),'Total de Componenes actualizados : '||nuOk);
@@ -463,19 +468,19 @@ declare
         pEscritura(tbArchivos(nuIdErr),'Total de Errores : '||nuErr);
         pEscritura(tbArchivos(nuIdErr),'Rango Total de Ejecución ['||to_char(cdtFecha,'dd/mm/yyyy')||']['||to_char(cdtFecha,'hh24:mi:ss')||' - '||to_char(sysdate,'hh24:mi:ss')||']');
         pEscritura(tbArchivos(nuIdErr),'Tiempo Total de Ejecución['||fnc_rs_CalculaTiempo(cdtFecha,sysdate)||']');
-        utl_file.fclose( tbArchivos(nuIdErr).flFile );
+        
+        for i in -1 .. cnuOuts loop
+            if ( utl_file.is_open( tbArchivos(i).flFile ) ) then
+                utl_file.fclose( tbArchivos(i).flFile );
+            end if;
+        end loop;
     END pCerrarArchivo;
     
     PROCEDURE pCerrarArchivoE IS
     BEGIN
-        for i in 1 .. cnuOuts loop
-            if ( utl_file.is_open( tbArchivos(i).flFile ) ) then
-                utl_file.fclose( tbArchivos(i).flFile );
-            end if;
-        end loop;
         -- Indica que terminó el proceso en el archivo de salida
         pEscritura(tbArchivos(nuIdErr),'================================================');
-        pEscritura(tbArchivos(nuIdErr),'Finaliza la actualización con Error: ' ||sqlerrm );
+        pEscritura(tbArchivos(nuIdErr),'Finaliza la actualización con Error '||csbWO||': ' ||sqlerrm );
         pEscritura(tbArchivos(nuIdErr),'Total de Componentes detectados : '||nuLine);
         pEscritura(tbArchivos(nuIdErr),'Total de Componentes almacenados : '||nuTotal);
         pEscritura(tbArchivos(nuIdErr),'Total de Componenes actualizados : '||nuOk);
@@ -485,7 +490,12 @@ declare
         pEscritura(tbArchivos(nuIdErr),'Total de Errores : '||nuErr);
         pEscritura(tbArchivos(nuIdErr),'Rango Total de Ejecución ['||to_char(cdtFecha,'dd/mm/yyyy')||']['||to_char(cdtFecha,'hh24:mi:ss')||' - '||to_char(sysdate,'hh24:mi:ss')||']');
         pEscritura(tbArchivos(nuIdErr),'Tiempo Total de Ejecución['||fnc_rs_CalculaTiempo(cdtFecha,sysdate)||']');
-        utl_file.fclose(tbArchivos(nuIdErr).flFile);
+        
+        for i in -1 .. cnuOuts loop
+            if ( utl_file.is_open( tbArchivos(i).flFile ) ) then
+                utl_file.fclose( tbArchivos(i).flFile );
+            end if;
+        end loop;
     END pCerrarArchivoE;
     
     PROCEDURE pGeneraciondeRastro(ircRecord in out nocopy tyrcRegistro) is
@@ -1054,7 +1064,7 @@ declare
         nuServicio  := null;
         nuComponente := null;
 
-        if csbOutPut = 'S' or tbArchivos(0).flgprint = 'N' then
+        if csbdOutPut = 'S' or tbArchivos(0).flgprint = 'N' then
             --nuPivote := 1;
             loop
                 tbLecManual.delete;
@@ -1110,7 +1120,7 @@ declare
                     end if;
                     
                     tbCampos.delete;
-                    parsestring (osbline, csbPIPE, tbCampos);
+                    parsestring(osbline, csbPIPE, tbCampos);
                     
                     if tbCampos.exists(1) and tbCampos.exists(2) then
                         
