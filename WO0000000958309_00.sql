@@ -1067,11 +1067,10 @@ declare
 
         if csbdOutPut = 'S' or tbArchivos(0).flgprint = 'N' then
             --nuPivote := 1;
+            open cuLecManual;
             loop
                 tbLecManual.delete;
-                open cuLecManual;
                 fetch cuLecManual bulk collect into tbLecManual limit cnuLimit;
-                close cuLecManual;
                 exit when tbLecManual.count = 0; 
 
                 for i in 1..tbLecManual.count loop 
@@ -1111,6 +1110,7 @@ declare
                 --nuPivote := tbLecManual(tbLecManual.last).sesunuse;
                 exit when tbLecManual.count < cnuLimit; 
             end loop;
+            close cuLecManual;
         else
             loop
                 begin
