@@ -30,8 +30,8 @@ y anulación de ordenes duplicadas
 ***********************************************************/
 declare
     --Constantes
-    csbEPM_WO           constant varchar2( 10 ) := 'WO958309'; 
     csbWO               constant varchar2( 32 ) := 'WO0000000958309';
+    csbEPM_WO           constant varchar2( 10 ) := substr(csbWO,1,2)||trim(leading '0' from substr(csbWO,3,7))||substr(csbWO,10);
     csbdOutPut          constant varchar2( 1 )  := 'N';
     csbfInPut           constant varchar2( 1 )  := 'N';
     csbEscritura        constant varchar2( 1 )  := 'w';
@@ -42,8 +42,9 @@ declare
     csbformatos         constant varchar2( 50 ) := 'yyyymmdd_hh24miss';
     cdtFechRepo         constant date           := to_date('01/01/2001','dd/mm/yyyy');
     cnuLimit            constant number         := 500;
-    cnuOuts             constant number         := 3;
+    cnuIdErr            constant number         := 1;
     cnuHilo             constant number         := 1;   
+    cnuOuts             constant number         := 3;
     cnuHash             constant number         := 10;
     
     
@@ -159,7 +160,6 @@ declare
     nuAct               number;
     nuWrng              number;
     nuErr               number;
-    nuIdErr             number;
     sbCabecera          varchar2(2000);
     osbline             varchar2(2000);
     s_Linea_out         varchar2(2000);
@@ -345,8 +345,7 @@ declare
         nuAct       := 0;
         nuErr       := 0;      
         nuWrng      := 0;  
-        nuIdErr     := 1;
-
+        
         tbRegistro.delete;
         tbcampos.delete;
         tbLecManual.delete;
@@ -365,14 +364,14 @@ declare
         tbArchivos(3).tipoarch :=  csbEscritura; 
         --tbArchivos(4).tipoarch := csbEscritura;
 
-        tbArchivos(-1).flgprint := 'S';
+        tbArchivos(-1).flgprint := 'N';
         tbArchivos(0).flgprint  := csbfInPut;
         tbArchivos(1).flgprint  := 'N';
-        tbArchivos(2).flgprint  := 'N';
+        tbArchivos(2).flgprint  := 'S';
         tbArchivos(3).flgprint  := 'N';
         
         sbCabecera := 'TipoError|Producto|Componente|Mensaje|Error'; 
-        tbArchivos(nuIdErr).cabecera := sbCabecera;
+        tbArchivos(cnuIdErr).cabecera := sbCabecera;
         
         sbCabecera := 'Sesunuse|Emsscoem|Susccodi|Subscriber|Identidad|Sesuserv|Servdesc|Sesuesco|Escodesc|Sesucicl|Sesucico|Sesufein|Sesufere|Sesufucb|Sesudepa|Sesuloca|Sesucate|Sesusuca|Sesuplfa|CommerPlan|AddressP|AddressC|';
         sbCabecera := sbCabecera||'Cmssidco|Cmssidcp|Cmssescm|Escmdesc|Cmsstcom|Tcomdesc|Cmssclse|Clsedesc|Cmssfein|Cmssfere|Cmsscouc|';
@@ -418,54 +417,62 @@ declare
         sbComentario := 'Error escritura archivo';
         raise raise_continuar;  
     END pEscritura;
+
+    Procedure pOpen(inuOut in number) IS
+    Begin
+        if csbdOutPut != 'S' then
+            if inuOut = 0 and tbArchivos(inuOut).flgprint = 'S' then
+                -- Archivo de Entrada
+                pkg_epm_filemanager.pClearFileCtrlM(sbRuta, tbArchivos(inuOut).nombrearch);
+                --tbArchivos(inuOut).flFile := pkg_epm_gestionarchivos.ffabrirarchivo(sbRuta, tbArchivos(inuOut).nombrearch, tbArchivos(inuOut).tipoarch);
+                tbArchivos(inuOut).flFile := utl_file.fopen(sbRuta, tbArchivos(inuOut).nombrearch, tbArchivos(inuOut).tipoarch);
+            elsif inuOut != 0 then
+                --tbArchivos(inuOut).flFile := pkg_epm_gestionarchivos.ffabrirarchivo(sbRuta, tbArchivos(inuOut).nombrearch, tbArchivos(inuOut).tipoarch);
+                tbArchivos(inuOut).flFile := utl_file.fopen(sbRuta, tbArchivos(inuOut).nombrearch, tbArchivos(inuOut).tipoarch);
+            end if;        
+        end if;
+    exception
+        when others then
+            raise;    
+    End pOpen;
      
     PROCEDURE pAbrirArchivo IS
     BEGIN
-        if csbdOutPut != 'S' then 
-            for i in -1 .. cnuOuts loop
-                begin   
-                    if i = 0 and tbArchivos(0).flgprint = 'S' then
-                        -- Archivo de entrada
-                        pkg_epm_filemanager.pClearFileCtrlM(sbRuta, tbArchivos(0).nombrearch);
-                        --tbArchivos(0).flFile := pkg_epm_gestionarchivos.ffabrirarchivo(sbRuta, tbArchivos(0).nombrearch, tbArchivos(0).tipoarch); 
-                        tbArchivos(0).flFile := utl_file.fopen(sbRuta, tbArchivos(0).nombrearch, tbArchivos(0).tipoarch);
-                    elsif i != 0 then
-                        --tbArchivos(i).flFile := pkg_epm_gestionarchivos.ffabrirarchivo(sbRuta, tbArchivos(i).nombrearch, tbArchivos(i).tipoarch);
-                        tbArchivos(i).flFile := utl_file.fopen(sbRuta, tbArchivos(i).nombrearch, tbArchivos(i).tipoarch);
-                        if i != -1 then
-                            pEscritura(tbArchivos(i),tbArchivos(i).cabecera);
-                            pEscritura(tbArchivos(-1),tbArchivos(i).nombrearch);
-                        end if;
-                    end if;   
-                exception
-                    when utl_file.invalid_operation then
-                        if utl_file.is_open( tbArchivos(nuIdErr).flFile ) then
-                            sbComentario := 'Error -1|||Error en operacion "'||tbArchivos(i).tipoarch||
-                            '" para el archivo "'||tbArchivos(i).nombrearch||'" en la ruta "'||sbRuta||'"|'||sqlerrm;
-                            pEscritura(tbArchivos(nuIdErr),sbComentario);
-                            raise;
-                        else
-                            dbms_output.put_line('Error -1|||Error no controlado el apertura de archivos|'||sqlerrm);    
-                            raise;
-                        end if;
-                end;                   
-            end loop;
-        end if;
+        for i in -1 .. cnuOuts loop
+            begin   
+                pOpen(i);                    
+                if i >= cnuIdErr then
+                    pEscritura(tbArchivos(i),tbArchivos(i).cabecera);
+                    pEscritura(tbArchivos(-1),tbArchivos(i).nombrearch);
+                end if;
+            exception
+                when utl_file.invalid_operation then
+                    if utl_file.is_open( tbArchivos(cnuIdErr).flFile ) then
+                        sbComentario := 'Error -1|||Error en operacion "'||tbArchivos(i).tipoarch||
+                        '" para el archivo "'||tbArchivos(i).nombrearch||'" en la ruta "'||sbRuta||'"|'||sqlerrm;
+                        pEscritura(tbArchivos(cnuIdErr),sbComentario);
+                        raise;
+                    else
+                        dbms_output.put_line('Error -1|||Error no controlado el apertura de archivos|'||sqlerrm);    
+                        raise;
+                    end if;
+            end;                   
+        end loop;        
     END pAbrirArchivo;
     
     PROCEDURE pCerrarArchivo IS
     BEGIN
-        pEscritura(tbArchivos(nuIdErr),'================================================');
-        pEscritura(tbArchivos(nuIdErr),'Finaliza la actualización '||csbWO||'.' );
-        pEscritura(tbArchivos(nuIdErr),'Total de Componentes detectados : '||nuLine);
-        pEscritura(tbArchivos(nuIdErr),'Total de Componentes almacenados : '||nuTotal);
-        pEscritura(tbArchivos(nuIdErr),'Total de Componenes actualizados : '||nuOk);
-        pEscritura(tbArchivos(nuIdErr),'Total de Ordenes actualizadas : '||nuOr);
-        pEscritura(tbArchivos(nuIdErr),'Total de Actividades actualizadas : '||nuAct);
-        pEscritura(tbArchivos(nuIdErr),'Total de Advertencias : '||nuWrng);
-        pEscritura(tbArchivos(nuIdErr),'Total de Errores : '||nuErr);
-        pEscritura(tbArchivos(nuIdErr),'Rango Total de Ejecución ['||to_char(cdtFecha,'dd/mm/yyyy')||']['||to_char(cdtFecha,'hh24:mi:ss')||' - '||to_char(sysdate,'hh24:mi:ss')||']');
-        pEscritura(tbArchivos(nuIdErr),'Tiempo Total de Ejecución['||fnc_rs_CalculaTiempo(cdtFecha,sysdate)||']');
+        pEscritura(tbArchivos(cnuIdErr),'================================================');
+        pEscritura(tbArchivos(cnuIdErr),'Finaliza la actualización '||csbWO||'.' );
+        pEscritura(tbArchivos(cnuIdErr),'Total de Componentes detectados : '||nuLine);
+        pEscritura(tbArchivos(cnuIdErr),'Total de Componentes almacenados : '||nuTotal);
+        pEscritura(tbArchivos(cnuIdErr),'Total de Componenes actualizados : '||nuOk);
+        pEscritura(tbArchivos(cnuIdErr),'Total de Ordenes actualizadas : '||nuOr);
+        pEscritura(tbArchivos(cnuIdErr),'Total de Actividades actualizadas : '||nuAct);
+        pEscritura(tbArchivos(cnuIdErr),'Total de Advertencias : '||nuWrng);
+        pEscritura(tbArchivos(cnuIdErr),'Total de Errores : '||nuErr);
+        pEscritura(tbArchivos(cnuIdErr),'Rango Total de Ejecución ['||to_char(cdtFecha,'dd/mm/yyyy')||']['||to_char(cdtFecha,'hh24:mi:ss')||' - '||to_char(sysdate,'hh24:mi:ss')||']');
+        pEscritura(tbArchivos(cnuIdErr),'Tiempo Total de Ejecución['||fnc_rs_CalculaTiempo(cdtFecha,sysdate)||']');
         
         for i in -1 .. cnuOuts loop
             if ( utl_file.is_open( tbArchivos(i).flFile ) ) then
@@ -477,17 +484,17 @@ declare
     PROCEDURE pCerrarArchivoE IS
     BEGIN
         -- Indica que terminó el proceso en el archivo de salida
-        pEscritura(tbArchivos(nuIdErr),'================================================');
-        pEscritura(tbArchivos(nuIdErr),'Finaliza la actualización con Error '||csbWO||': ' ||sqlerrm );
-        pEscritura(tbArchivos(nuIdErr),'Total de Componentes detectados : '||nuLine);
-        pEscritura(tbArchivos(nuIdErr),'Total de Componentes almacenados : '||nuTotal);
-        pEscritura(tbArchivos(nuIdErr),'Total de Componenes actualizados : '||nuOk);
-        pEscritura(tbArchivos(nuIdErr),'Total de Ordenes actualizadas : '||nuOr);
-        pEscritura(tbArchivos(nuIdErr),'Total de Actividades actualizadas : '||nuAct);
-        pEscritura(tbArchivos(nuIdErr),'Total de Advertencias : '||nuWrng);
-        pEscritura(tbArchivos(nuIdErr),'Total de Errores : '||nuErr);
-        pEscritura(tbArchivos(nuIdErr),'Rango Total de Ejecución ['||to_char(cdtFecha,'dd/mm/yyyy')||']['||to_char(cdtFecha,'hh24:mi:ss')||' - '||to_char(sysdate,'hh24:mi:ss')||']');
-        pEscritura(tbArchivos(nuIdErr),'Tiempo Total de Ejecución['||fnc_rs_CalculaTiempo(cdtFecha,sysdate)||']');
+        pEscritura(tbArchivos(cnuIdErr),'================================================');
+        pEscritura(tbArchivos(cnuIdErr),'Finaliza la actualización con Error '||csbWO||': ' ||sqlerrm );
+        pEscritura(tbArchivos(cnuIdErr),'Total de Componentes detectados : '||nuLine);
+        pEscritura(tbArchivos(cnuIdErr),'Total de Componentes almacenados : '||nuTotal);
+        pEscritura(tbArchivos(cnuIdErr),'Total de Componenes actualizados : '||nuOk);
+        pEscritura(tbArchivos(cnuIdErr),'Total de Ordenes actualizadas : '||nuOr);
+        pEscritura(tbArchivos(cnuIdErr),'Total de Actividades actualizadas : '||nuAct);
+        pEscritura(tbArchivos(cnuIdErr),'Total de Advertencias : '||nuWrng);
+        pEscritura(tbArchivos(cnuIdErr),'Total de Errores : '||nuErr);
+        pEscritura(tbArchivos(cnuIdErr),'Rango Total de Ejecución ['||to_char(cdtFecha,'dd/mm/yyyy')||']['||to_char(cdtFecha,'hh24:mi:ss')||' - '||to_char(sysdate,'hh24:mi:ss')||']');
+        pEscritura(tbArchivos(cnuIdErr),'Tiempo Total de Ejecución['||fnc_rs_CalculaTiempo(cdtFecha,sysdate)||']');
         
         for i in -1 .. cnuOuts loop
             if ( utl_file.is_open( tbArchivos(i).flFile ) ) then
@@ -622,7 +629,7 @@ declare
         else
             sbComentario := 'Wrng 2.1|'||nuServicio||'|'||nuComponente||
             '|Estado del componente no actualizado ['||ircRecord.cstatusid||' - '||ircRecord.cstatusid_n||']|NA';
-            pEscritura(tbArchivos(nuIdErr),sbComentario);
+            pEscritura(tbArchivos(cnuIdErr),sbComentario);
             nuWrng := nuWrng + 1;  
 
             ircRecord.cstatusid_n := ircRecord.cstatusid; 
@@ -632,7 +639,7 @@ declare
         if not ircRecord.tbOrdenes.exists(nuHash) and ircRecord.packageid is not null then
             sbComentario := 'Wrng 2.2|'||nuServicio||'|'||nuComponente||
             '|Producto sin orden para anular asociada al componente retirado. Solicitud ['||ircRecord.packageid||'] Motivo ['||ircRecord.motiveid||']|NA';
-            pEscritura(tbArchivos(nuIdErr),sbComentario);
+            pEscritura(tbArchivos(cnuIdErr),sbComentario);
             nuWrng := nuWrng + 1;  
         elsif ircRecord.packageid is not null and ircRecord.cantorden != 1 then
             
@@ -640,7 +647,7 @@ declare
                 sbComentario := 'Wrng 2.3|'||nuServicio||'|'||nuComponente||
                 '|Producto con orden para anular en un estado diferente al esperado. Orden ['||ircRecord.tbOrdenes(nuHash).orderid||
                 '] Estado ['||ircRecord.tbOrdenes(nuHash).ostatusid||' - '||ircRecord.tbOrdenes(nuHash).ostatusdesc||']|NA';
-                pEscritura(tbArchivos(nuIdErr),sbComentario);
+                pEscritura(tbArchivos(cnuIdErr),sbComentario);
                 nuWrng := nuWrng + 1;      
             else
                 --Anulación 
@@ -665,7 +672,7 @@ declare
                         sbComentario := 'Wrng 2.5|'||nuServicio||'|'||nuComponente||
                         '|Estado de la actividad no actualizada ['||ircRecord.tbOrdenes(nuHash).orderactivityid||']['||ircRecord.tbOrdenes(nuHash).status||'
                         ]['||ircRecord.tbOrdenes(nuHash).status_n||']|NA';
-                        pEscritura(tbArchivos(nuIdErr),sbComentario);
+                        pEscritura(tbArchivos(cnuIdErr),sbComentario);
                         nuWrng := nuWrng + 1;   
 
                         ircRecord.tbOrdenes(nuHash).status_n := ircRecord.tbOrdenes(nuHash).status;
@@ -675,7 +682,7 @@ declare
                     sbComentario := 'Wrng 2.4|'||nuServicio||'|'||nuComponente||
                     '|Estado de la orden no actualizada ['||ircRecord.tbOrdenes(nuHash).orderid||']['||ircRecord.tbOrdenes(nuHash).ostatusid||'
                     ]['||ircRecord.tbOrdenes(nuHash).ostatusid_n||']|NA';
-                    pEscritura(tbArchivos(nuIdErr),sbComentario);
+                    pEscritura(tbArchivos(cnuIdErr),sbComentario);
                     nuWrng := nuWrng + 1;   
 
                     ircRecord.tbOrdenes(nuHash).ostatusid_n := ircRecord.tbOrdenes(nuHash).ostatusid;
@@ -835,7 +842,7 @@ declare
                 if rcElemento.emsscoem is null then
                     sbComentario := 'Wrng 1.1|'||nuServicio||'|'||nuComponente||
                     '|No se encuentra identificador para el servicio ['||rcServicio.sesuserv||' - '||rcServicio.servdesc||']|NA';
-                    pEscritura(tbArchivos(nuIdErr),sbComentario);
+                    pEscritura(tbArchivos(cnuIdErr),sbComentario);
                     nuWrng := nuWrng + 1;   
                 end if;
 
@@ -864,18 +871,18 @@ declare
                 if nuContador = 0 then
                     sbComentario := 'Wrng 1.2|'||nuServicio||'|'||nuComponente||
                     '|Producto sin ordenes o peticiones pendientes|NA';
-                    pEscritura(tbArchivos(nuIdErr),sbComentario);
+                    pEscritura(tbArchivos(cnuIdErr),sbComentario);
                     nuWrng := nuWrng + 1;   
                 elsif rcSolicitud.cantidad < 2 then 
                     sbComentario := 'Wrng 1.3|'||nuServicio||'|'||nuComponente||
                     '|Producto con una unica orden ['||rcSolicitud.package_id||']['||rcSolicitud.cantidad||']|NA';
-                    pEscritura(tbArchivos(nuIdErr),sbComentario);
+                    pEscritura(tbArchivos(cnuIdErr),sbComentario);
                     nuWrng := nuWrng + 1; 
                 elsif nuContador > 1 then
                     sbComentario := 'Wrng 1.4|'||nuServicio||'|'||nuComponente||
                     '|Producto con más de una solicitud con ordenes pendientes ['||nuContador||']|NA';
                     rcSolicitud := null;
-                    pEscritura(tbArchivos(nuIdErr),sbComentario);
+                    pEscritura(tbArchivos(cnuIdErr),sbComentario);
                     nuWrng := nuWrng + 1; 
                 end if;
                   
@@ -995,7 +1002,7 @@ declare
 
             exception
                 when raise_continuar then
-                    pEscritura(tbArchivos(nuIdErr),sbComentario);
+                    pEscritura(tbArchivos(cnuIdErr),sbComentario);
                     tbRegistro.delete(sbHash);
                     nuErr := nuErr + 1;  
                 when others then
@@ -1003,7 +1010,7 @@ declare
                     pkerrors.geterrorvar (nuErrorCode, sbErrorMensaje);
                     sbComentario := 'Error 1.0|'||nuServicio||'|'||nuComponente||
                     '|Error desconocido en analisis de datos|'||sbErrorMensaje;
-                    pEscritura(tbArchivos(nuIdErr),sbComentario);
+                    pEscritura(tbArchivos(cnuIdErr),sbComentario);
                     tbRegistro.delete(sbHash);
                     nuErr := nuErr + 1;  
                     
@@ -1039,7 +1046,7 @@ declare
        
     exception
         when raise_continuar then
-            pEscritura(tbArchivos(nuIdErr),sbComentario);
+            pEscritura(tbArchivos(cnuIdErr),sbComentario);
             nuErr := nuErr + 1;  
     end pAnalizaDatos;
     
@@ -1086,7 +1093,7 @@ declare
                             sbComentario := 'Error 0.2|'||nuServicio||'|'||nuComponente||
                             '|Servicio duplicado|NA';
                             tbRegistro(sbHash).sbFlag := 'S';
-                            pEscritura(tbArchivos(nuIdErr),sbComentario); 
+                            pEscritura(tbArchivos(cnuIdErr),sbComentario); 
                             nuErr := nuErr + 1;
                         end if; 
 
@@ -1096,7 +1103,7 @@ declare
                             pkerrors.geterrorvar (nuErrorCode, sbErrorMensaje);
                             sbComentario := 'Error 0.0|'||nuServicio||'|'||nuComponente||
                             '|Error desconocido en generación de datos de entrada|'||sbErrorMensaje;
-                            pEscritura(tbArchivos(nuIdErr),sbComentario); 
+                            pEscritura(tbArchivos(cnuIdErr),sbComentario); 
                             nuErr := nuErr + 1;
                     end;
                 end loop; 
@@ -1144,14 +1151,14 @@ declare
                     end if;
                 exception
                     when raise_continuar then
-                        pEscritura(tbArchivos(nuIdErr),sbComentario); 
+                        pEscritura(tbArchivos(cnuIdErr),sbComentario); 
                         nuErr := nuErr + 1; 
                     when others then
                         sbErrorMensaje := sqlerrm;
                         pkerrors.geterrorvar (nuErrorCode, sbErrorMensaje);
                         sbComentario := 'Error 0.0|'||nuServicio||'|'||nuComponente||
                         '|Error desconocido en lectura de archivo de entrada ['||osbline||']|'||sbErrorMensaje;
-                        pEscritura(tbArchivos(nuIdErr),sbComentario); 
+                        pEscritura(tbArchivos(cnuIdErr),sbComentario); 
                         nuErr := nuErr + 1;  
                 end;
             end loop;
@@ -1176,35 +1183,35 @@ declare
                     if rcValida.component_id is null then
                         sbComentario := 'Error 0.3|'||nuServicio||'|'||nuComponente||
                         '|No existe el componente en la base de datos|NA';
-                        pEscritura(tbArchivos(nuIdErr),sbComentario); 
+                        pEscritura(tbArchivos(cnuIdErr),sbComentario); 
                         nuTotal := nuTotal - 1;
                         nuErr := nuErr + 1;
                         tbRegistro.delete(sbHash);
                     elsif rcValida.product_id != nuServicio then
                         sbComentario := 'Error 0.4|'||nuServicio||'|'||nuComponente||
                         '|El producto del componente no corresponde con el esperado ['||rcValida.product_id||']|NA';
-                        pEscritura(tbArchivos(nuIdErr),sbComentario); 
+                        pEscritura(tbArchivos(cnuIdErr),sbComentario); 
                         nuTotal := nuTotal - 1;
                         nuErr := nuErr + 1;
                         tbRegistro.delete(sbHash);
                     elsif rcValida.component_status_id = rcValida.cmssescm then
                         sbComentario := 'Error 0.5|'||nuServicio||'|'||nuComponente||
                         '|El estado del componente ya se encuentra sincronizado ['||rcValida.component_status_id||']|NA';
-                        pEscritura(tbArchivos(nuIdErr),sbComentario); 
+                        pEscritura(tbArchivos(cnuIdErr),sbComentario); 
                         nuTotal := nuTotal - 1;
                         nuErr := nuErr + 1;
                         tbRegistro.delete(sbHash);
                     /*elsif rcValida.component_status_id = 9 then
                         sbComentario := 'Error 0.5|'||nuServicio||'|'||nuComponente||
                         '|El estado del componente ya se encuentra retirado ['||rcValida.component_status_id||']|NA';
-                        pEscritura(tbArchivos(nuIdErr),sbComentario); 
+                        pEscritura(tbArchivos(cnuIdErr),sbComentario); 
                         nuTotal := nuTotal - 1;
                         nuErr := nuErr + 1;
                         tbRegistro.delete(sbHash);
                     elsif rcValida.component_status_id != 5 then 
                         sbComentario := 'Error 0.6|'||nuServicio||'|'||nuComponente||
                         '|El estado del componente es diferente del esperado ['||rcValida.component_status_id||' - '||5||']|NA';
-                        pEscritura(tbArchivos(nuIdErr),sbComentario); 
+                        pEscritura(tbArchivos(cnuIdErr),sbComentario); 
                         nuTotal := nuTotal - 1;
                         nuErr := nuErr + 1;
                         tbRegistro.delete(sbHash);*/
