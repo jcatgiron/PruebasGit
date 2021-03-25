@@ -37,7 +37,7 @@ declare
     csbEscritura        constant varchar2( 1 )  := 'w';
     csbLectura          constant varchar2( 1 )  := 'r';
     csbPIPE             constant varchar2( 1 )  := '|';
-    cdtFecha            constant date           := ut_date.fdtSysdate;
+    cdtFecha            constant date           := sysdate; --ut_date.fdtSysdate;
     csbformato          constant varchar2( 50 ) := 'dd/mm/yyyy hh24:mi:ss';
     csbformatos         constant varchar2( 50 ) := 'yyyymmdd_hh24miss';
     cdtFechRepo         constant date           := to_date('01/01/2001','dd/mm/yyyy');
@@ -337,7 +337,7 @@ declare
         
         --pkerrors.setapplication(csbEPM_WO);
         --Sa_BOSystem.SetSystemProcessName(csbEPM_WO);    
-        sbRuta := '/output/traza';
+        select pamechar into sbRuta from parametr where pamecodi = 'RUTA_TRAZA';
         --sbRuta := pkGeneralParametersMgr.fsbGetStringValue('RUTA_TRAZA');
 
         nuLine      := 0;
@@ -366,9 +366,9 @@ declare
         tbArchivos(3).tipoarch :=  csbEscritura; 
         --tbArchivos(4).tipoarch := csbEscritura;
 
-        tbArchivos(-1).flgprint := 'N';
+        tbArchivos(-1).flgprint := 'S';
         tbArchivos(0).flgprint  := csbfInPut;
-        tbArchivos(1).flgprint  := 'S';
+        tbArchivos(1).flgprint  := 'N';
         tbArchivos(2).flgprint  := 'N';
         tbArchivos(3).flgprint  := 'N';
         

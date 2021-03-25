@@ -335,7 +335,7 @@ declare
         
         pkerrors.setapplication(csbEPM_WO);
         --Sa_BOSystem.SetSystemProcessName(csbEPM_WO);    
-        --sbRuta := '/output/traza';
+        --select pamechar into sbRuta from parametr where pamecodi = 'RUTA_TRAZA';
         sbRuta := pkGeneralParametersMgr.fsbGetStringValue('RUTA_TRAZA');
 
         nuLine      := 0;
