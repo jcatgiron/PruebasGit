@@ -41,6 +41,7 @@ declare
     csbformato          constant varchar2( 50 ) := 'dd/mm/yyyy hh24:mi:ss';
     csbformatos         constant varchar2( 50 ) := 'yyyymmdd_hh24miss';
     cdtFechRepo         constant date           := to_date('01/01/2001','dd/mm/yyyy');
+    cnuSegundo          constant number         := 1/86400;
     cnuLimit            constant number         := 500;
     cnuIdErr            constant number         := 1;
     cnuHilo             constant number         := 1;   
