@@ -1105,6 +1105,7 @@ declare
                             '|Error desconocido en generación de datos de entrada|'||sbErrorMensaje;
                             pEscritura(tbArchivos(cnuIdErr),sbComentario); 
                             nuErr := nuErr + 1;
+                            tbRegistro(sbHash).sbFlag := 'S';
                     end;
                 end loop; 
 
@@ -1161,6 +1162,7 @@ declare
                         '|Error desconocido en lectura de archivo de entrada ['||osbline||']|'||sbErrorMensaje;
                         pEscritura(tbArchivos(cnuIdErr),sbComentario); 
                         nuErr := nuErr + 1;  
+                        tbRegistro(sbHash).sbFlag := 'S';
                 end;
             end loop;
         end if;
