@@ -81,9 +81,10 @@ declare
     (
         sesunuse    servsusc.sesunuse%type,
         emsscoem    elmesesu.emsscoem%type,
-        susccodi    suscripc.susccodi%type,    
-        subscriber  ge_subscriber.subscriber_name%type, 
-        identidad   ge_subscriber.identification%type,
+        susccodi    suscripc.susccodi%type,
+        suscnomb    suscripc.suscmail%type,    
+        clienomb    ge_subscriber.subscriber_name%type, 
+        clienit     ge_subscriber.identification%type,
         sesuserv    servsusc.sesuserv%type,
         servdesc    servicio.servdesc%type,
         sesuesco    servsusc.sesuesco%type,
@@ -376,7 +377,7 @@ declare
         sbCabecera := 'TipoError|Producto|Componente|Mensaje|Error'; 
         tbArchivos(cnuIdErr).cabecera := sbCabecera;
         
-        sbCabecera := 'Sesunuse|Emsscoem|Susccodi|Subscriber|Identidad|Sesuserv|Servdesc|Sesuesco|Escodesc|Sesucicl|Sesucico|Sesufein|Sesufere|Sesufucb|Sesudepa|Sesuloca|Sesucate|Sesusuca|Sesuplfa|CommerPlan|AddressP|AddressC|';
+        sbCabecera := 'Sesunuse|Emsscoem|Susccodi|Suscname|Clienomb|Identidad|Sesuserv|Servdesc|Sesuesco|Escodesc|Sesucicl|Sesucico|Sesufein|Sesufere|Sesufucb|Sesudepa|Sesuloca|Sesucate|Sesusuca|Sesuplfa|CommerPlan|AddressP|AddressC|';
         sbCabecera := sbCabecera||'Cmssidco|Cmssidcp|Cmssescm|Escmdesc|Cmsstcom|Tcomdesc|Cmssclse|Clsedesc|Cmssfein|Cmssfere|Cmsscouc|';
 		sbCabecera := sbCabecera||'Component_status_ant|Component_status_act|Actualizado';
         tbArchivos(2).cabecera := sbCabecera;
@@ -511,8 +512,9 @@ declare
         s_Linea_out := nuServicio;
         s_Linea_out := s_Linea_out||'|'||ircRecord.emsscoem;
         s_Linea_out := s_Linea_out||'|'||ircRecord.susccodi;
-        s_Linea_out := s_Linea_out||'|'||ircRecord.subscriber;
-        s_Linea_out := s_Linea_out||'|'||ircRecord.identidad;
+        s_Linea_out := s_Linea_out||'|'||ircRecord.suscnomb;
+        s_Linea_out := s_Linea_out||'|'||ircRecord.clienomb;
+        s_Linea_out := s_Linea_out||'|'||ircRecord.clienit;
         s_Linea_out := s_Linea_out||'|'||ircRecord.sesuserv;
         s_Linea_out := s_Linea_out||'|'||ircRecord.servdesc;
         s_Linea_out := s_Linea_out||'|'||ircRecord.sesuesco;
@@ -717,7 +719,7 @@ declare
         
         cursor cuServicio (inusesu in servsusc.sesunuse%type) is 
         select /*+ index (s pk_servsusc) index (p pk_pr_product) */
-        sesunuse,sesuserv,servdesc,susccodi,replace(subscriber_name,'|','/') subscriber_name,identification,sesucicl,sesucico,sesuesco,escodesc,sesufein,sesufere,sesufucb,
+        sesunuse,sesuserv,servdesc,susccodi,replace(suscmail,'|','/') suscmail,replace(subscriber_name,'|','/') subscriber_name,identification,sesucicl,sesucico,sesuesco,escodesc,sesufein,sesufere,sesufucb,
         sesucate,sesusuca,sesudepa,sesuloca,sesuplfa,commercial_plan_id commerplan,
         (select replace(address_parsed,'|','/') from ab_address where address_id = p.address_id) addressp,
         (select replace(address_parsed,'|','/') from ab_address where address_id = susciddi) addressc
