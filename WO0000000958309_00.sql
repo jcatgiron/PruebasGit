@@ -321,8 +321,8 @@ declare
     BEGIN
         
         BEGIN
-            EXECUTE IMMEDIATE
-            'alter session set nls_date_format = "dd/mm/yyyy hh24:mi:ss"';
+            --EXECUTE IMMEDIATE
+            --'alter session set nls_date_format = "dd/mm/yyyy hh24:mi:ss"';
             
             EXECUTE IMMEDIATE 
             'alter session set nls_numeric_characters = ",."';
