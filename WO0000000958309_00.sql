@@ -13,9 +13,9 @@ y anulación de ordenes duplicadas
     
     Archivo de Salida 
     ===================
-    WO0000000958309_yyyymmdd_hh24miss_Log.txt
-    WO0000000958309_yyyymmdd_hh24miss_Poblacion.txt
-    WO0000000958309_yyyymmdd_hh24miss_Ordenes.txt
+    WO0000000958309_yyyymmdd_Log.txt
+    WO0000000958309_yyyymmdd_Poblacion.txt
+    WO0000000958309_yyyymmdd_Ordenes.txt
     
     --Modificaciones    
     
