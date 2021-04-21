@@ -169,7 +169,9 @@ declare
     raise_continuar     exception;
     sbComentario        varchar2(2000);
     nuContador          number;
+    nuContador2         number;
     nuPivote            number;
+    nuRowcount          number;
     nuServicio          servsusc.sesunuse%type;
     nuComponente        compsesu.cmssidco%type;
     nuErrorCode         number;
@@ -474,7 +476,7 @@ declare
         pEscritura(tbArchivos(cnuIdErr),'Total de Advertencias : '||nuWrng);
         pEscritura(tbArchivos(cnuIdErr),'Total de Errores : '||nuErr);
         pEscritura(tbArchivos(cnuIdErr),'Rango Total de Ejecución ['||to_char(cdtFecha,'dd/mm/yyyy')||']['||to_char(cdtFecha,'hh24:mi:ss')||' - '||to_char(sysdate,'hh24:mi:ss')||']');
-        pEscritura(tbArchivos(cnuIdErr),'Tiempo Total de Ejecución['||fnc_rs_CalculaTiempo(cdtFecha,sysdate)||']');
+        pEscritura(tbArchivos(cnuIdErr),'Tiempo Total de Ejecución ['||fnc_rs_CalculaTiempo(cdtFecha,sysdate)||']');
         
         for i in -1 .. cnuOuts loop
             if ( utl_file.is_open( tbArchivos(i).flFile ) ) then
@@ -496,7 +498,7 @@ declare
         pEscritura(tbArchivos(cnuIdErr),'Total de Advertencias : '||nuWrng);
         pEscritura(tbArchivos(cnuIdErr),'Total de Errores : '||nuErr);
         pEscritura(tbArchivos(cnuIdErr),'Rango Total de Ejecución ['||to_char(cdtFecha,'dd/mm/yyyy')||']['||to_char(cdtFecha,'hh24:mi:ss')||' - '||to_char(sysdate,'hh24:mi:ss')||']');
-        pEscritura(tbArchivos(cnuIdErr),'Tiempo Total de Ejecución['||fnc_rs_CalculaTiempo(cdtFecha,sysdate)||']');
+        pEscritura(tbArchivos(cnuIdErr),'Tiempo Total de Ejecución ['||fnc_rs_CalculaTiempo(cdtFecha,sysdate)||']');
         
         for i in -1 .. cnuOuts loop
             if ( utl_file.is_open( tbArchivos(i).flFile ) ) then
@@ -626,7 +628,8 @@ declare
         where product_id = nuServicio
         and component_id = nuComponente;
 
-        if sql%rowcount > 0 then
+        nuRowcount := sql%rowcount;
+        if nuRowcount > 0 then
             ircRecord.sbActualiza := 'S';
             nuOk := nuOk + 1;
         else
@@ -658,7 +661,8 @@ declare
                 set order_status_id = ircRecord.tbOrdenes(nuHash).ostatusid_n
                 where order_id = ircRecord.tbOrdenes(nuHash).orderid;
 
-                if sql%rowcount > 0 then
+                nuRowcount := sql%rowcount;
+                if nuRowcount > 0 then
 
                     update or_order_activity
                     set status = ircRecord.tbOrdenes(nuHash).status_n
@@ -666,8 +670,9 @@ declare
                     and motive_id = ircRecord.motiveid
                     and product_id = nuServicio
                     and order_activity_id = ircRecord.tbOrdenes(nuHash).orderactivityid;
-
-                    if sql%rowcount > 0 then
+                    
+                    nuRowcount := sql%rowcount;
+                    if nuRowcount > 0 then
                         ircRecord.tbOrdenes(nuHash).sbActualiza := 'S';
                         nuOr := nuOr + 1;
                         nuAct := nuAct + 1;
